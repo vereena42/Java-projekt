@@ -6,6 +6,8 @@ import generated.Vehicle;
 import javax.xml.bind.*;
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.File;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * @author Pawel Polit
@@ -35,9 +37,13 @@ public class XMLHandling {
         return (PersonList) unmarshaller.unmarshal(file);
     }
 
-    public static void main(String[] args) throws JAXBException, DatatypeConfigurationException {
+    public static void main(String[] args) throws JAXBException, DatatypeConfigurationException, IOException, NoSuchAlgorithmException {
         ObjectFactory objectFactory = new ObjectFactory();
         XMLHandling xmlHandling = new XMLHandling(objectFactory);
+
+        //trying SHAGenerator
+        SHAGenerator shaGenerator=new SHAGenerator();
+        System.out.println(shaGenerator.getSHA("src/main/resources/personList.xml"));
 
 //        PersonList personList = objectFactory.createPersonList();
 //        List<PersonType> persons = personList.getPerson();
