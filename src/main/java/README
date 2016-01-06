@@ -1,0 +1,12 @@
+Klient i server są w osobnych folderach. Można je wrzucić gdziekolwiek na dysk i powinno działać.
+
+Żeby odpalić Server:
+cd Server
+javac *.java
+rmiregistry &  //pamiętaj, żeby to zabić i uruchomić jeszcze raz przed ponownym odpaleniem servera
+java Server
+
+Żeby odpalić Client:
+cd Client
+javac *.java
+java Client
