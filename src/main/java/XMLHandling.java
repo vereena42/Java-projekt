@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * @author Pawel Polit
+ * Created by Pawel Polit
  */
 public class XMLHandling {
 
