@@ -1,7 +1,9 @@
 package Server;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,7 +29,7 @@ public class Server {
             FileOutputStream fileOutputStream = new FileOutputStream(path + ".zip");
             FileInputStream fileInputStream = new FileInputStream(path);
             ZipOutputStream zipOutputStream = new ZipOutputStream(fileOutputStream);
-            ZipEntry zipEntry = new ZipEntry(path);
+            ZipEntry zipEntry = new ZipEntry(path.substring(path.lastIndexOf('/')));
             zipOutputStream.putNextEntry(zipEntry);
             int length = fileInputStream.read(buf);
             while(length > 0) {
@@ -45,10 +47,21 @@ public class Server {
         return null;
     }
 
+    private static void sendFile(String path, DataOutputStream outToClient) throws IOException {
+        int count;
+        byte[] buffer = new byte[1024];
+
+        BufferedInputStream in = new BufferedInputStream(new FileInputStream(new File((path))));
+        while((count = in.read(buffer)) >= 0) {
+            outToClient.write(buffer, 0, count);
+            outToClient.flush();
+        }
+    }
+
     public static void main(String[] args) {
         try {
             String clientSentence;
-            ServerSocket welcomeSocket = new ServerSocket(5678);
+            ServerSocket welcomeSocket = new ServerSocket(4567);
             System.out.println("Server is ready");
 
             while(true) {
@@ -60,6 +73,8 @@ public class Server {
                 clientSentence = inFromClient.readLine();
                 System.out.println("Received: " + clientSentence);
                 outToClient.writeBytes(echo("MyFile.zip\n"));
+                sendFile("Server/MyFile.zip", outToClient);
+                connectionSocket.close();
             }
 
         } catch(IOException p_e) {

@@ -1,9 +1,9 @@
 package Client;
 
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.net.Socket;
 
 /**
@@ -11,18 +11,28 @@ import java.net.Socket;
  */
 public class Client {
 
-    public static void main(String [] args)
-    {
-        try {
-            String serverResponse;
+    private static void receiveFile(InputStream inFromServer) throws IOException {
+        FileOutputStream fos = new FileOutputStream("Client/MyFile.zip");
 
-            Socket clientSocket = new Socket("localhost", 5678);
+        byte[] buffer = new byte[1024];
+        int count;
+
+        while((count = inFromServer.read(buffer)) >= 0) {
+            fos.write(buffer, 0, count);
+        }
+        fos.close();
+        System.out.println("File received");
+    }
+
+    public static void main(String[] args) {
+        try {
+            Socket clientSocket = new Socket("localhost", 4567);
             DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            InputStream inFromServer = clientSocket.getInputStream();
 
             outToServer.writeBytes("Give me file\n");
-            serverResponse = inFromServer.readLine();
-            System.out.println("FROM SERVER: " + serverResponse);
+            receiveFile(inFromServer);
+
             clientSocket.close();
         } catch(IOException p_e) {
             p_e.printStackTrace();
