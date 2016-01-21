@@ -4,6 +4,7 @@ import Generated.ObjectFactory;
 import Generated.PersonList;
 import Generated.PersonType;
 import Generated.Vehicle;
+import Utils.SHAGenerator;
 import Utils.XMLHandling;
 import Utils.ZIPHandling;
 
@@ -12,16 +13,27 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.google.common.collect.Iterables;
+
+import static Utils.ProtocolMethod.DELETE;
+import static Utils.ProtocolMethod.GET;
+import static Utils.ProtocolMethod.POST;
 
 /**
  * Created by Dominika Salawa & Pawel Polit
@@ -33,53 +45,65 @@ public class Client {
         UNREGISTERED
     }
 
-    private DataOutputStream outToServer;
-    private InputStream inFromServer;
+    private String host;
+    private int port;
 
     private ObjectFactory objectFactory;
     private XMLHandling xmlHandling;
 
     private PersonList personList = null;
-    private String currentPersonListName = null;
+    private String personListName = null;
 
-    public Client(Socket p_socket) throws IOException, JAXBException {
-        outToServer = new DataOutputStream(p_socket.getOutputStream());
-        inFromServer = p_socket.getInputStream();
+    public Client(String p_host, int p_port) throws IOException, JAXBException {
+        host = p_host;
+        port = p_port;
 
         objectFactory = new ObjectFactory();
         xmlHandling = new XMLHandling(objectFactory);
     }
 
-    public void getFile(String p_fileName) throws IOException, JAXBException {
-        outToServer.writeBytes("GET " + p_fileName + "\n");
+    public void getFile(String p_fileName) throws IOException, JAXBException, NoSuchAlgorithmException {
+        String xmlPath = "Client/" + p_fileName + ".xml";
 
-        String zipPath = "Client/" + p_fileName + ".zip";
+        if(!new File(xmlPath).exists() || hasOldVersion(p_fileName)) {
+            Socket socket = new Socket(host, port);
+            DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+            InputStream inFromServer = socket.getInputStream();
 
-        FileOutputStream fos = new FileOutputStream(zipPath);
-        byte[] buffer = new byte[1024];
-        int count;
+            outToServer.writeBytes(GET + p_fileName + "\n");
 
-        while((count = inFromServer.read(buffer)) >= 0) {
-            fos.write(buffer, 0, count);
+            String zipPath = "Client/" + p_fileName + ".zip";
+
+            FileOutputStream fos = new FileOutputStream(zipPath);
+            byte[] buffer = new byte[1024];
+            int count;
+
+            while((count = inFromServer.read(buffer)) >= 0) {
+                fos.write(buffer, 0, count);
+            }
+
+            fos.close();
+            socket.close();
+
+            ZIPHandling.unZipFile(zipPath);
         }
 
-        fos.close();
+        personList = xmlHandling.unmarshal(xmlPath);
+        personListName = p_fileName;
 
-        ZIPHandling.unZipFile(zipPath);
-        personList = xmlHandling.unmarshal("Client/" + p_fileName + ".xml");
-
-        currentPersonListName = p_fileName;
-
-        System.out.println("File received");
+        System.out.println("File loaded");
     }
 
     public void sendFile() throws IOException, JAXBException {
-        String xmlPath = "Client/" + currentPersonListName + ".xml";
+        Socket socket = new Socket(host, port);
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+
+        String xmlPath = "Client/" + personListName + ".xml";
 
         xmlHandling.marshal(personList, xmlPath);
         String zipPath = ZIPHandling.toZip(xmlPath);
 
-        outToServer.writeBytes("POST " + currentPersonListName + "\n");
+        outToServer.writeBytes(POST + personListName + "\n");
 
         int count;
         byte[] buffer = new byte[1024];
@@ -89,11 +113,47 @@ public class Client {
             outToServer.write(buffer, 0, count);
             outToServer.flush();
         }
+
+        socket.close();
+    }
+
+    public List<FileInfo> getFilesInfo() throws IOException {
+        Socket socket = new Socket(host, port);
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+        BufferedReader inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        outToServer.writeBytes(GET + "\n");
+
+        int numberOfFiles = Integer.parseInt(inFromServer.readLine());
+
+        List<String> serverResponses = new ArrayList<>();
+
+        while(serverResponses.size() != numberOfFiles) {
+            serverResponses.add(inFromServer.readLine());
+        }
+
+        socket.close();
+
+        return serverResponses.stream()
+                .map(FileInfo::create)
+                .collect(Collectors.toList());
     }
 
     public void createNewPersonList(String p_personListName) {
         personList = objectFactory.createPersonList();
-        currentPersonListName = p_personListName;
+        personListName = p_personListName;
+    }
+
+    public void removePersonList() throws IOException {
+        Socket socket = new Socket(host, port);
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+
+        outToServer.writeBytes(DELETE + personListName);
+
+        socket.close();
+
+        personList = null;
+        personListName = null;
     }
 
     public void addPerson(String p_name, String p_surname, String p_email, String p_pesel) {
@@ -120,6 +180,10 @@ public class Client {
 
     public void changePersonPesel(int p_personIndex, String p_pesel) {
         personList.getPerson().get(p_personIndex).setPesel(p_pesel);
+    }
+
+    public void removePerson(int p_personIndex) {
+        personList.getPerson().remove(p_personIndex);
     }
 
     public void addVehicle(int p_personIndex, VehicleGroup p_vehicleGroup, String p_type, String p_chassisNumber,
@@ -185,6 +249,23 @@ public class Client {
                 .setRegistrationDate(prepareXmlDate(p_documentExpirationDate));
     }
 
+    public void removeVehicle(int p_personIndex, VehicleGroup p_vehicleGroup, int p_vehicleIndex) {
+        PersonType person = personList.getPerson().get(p_personIndex);
+        getAppropriateVehicleList(person, p_vehicleGroup).remove(p_vehicleIndex);
+    }
+
+    private boolean hasOldVersion(String p_fileName) throws IOException, NoSuchAlgorithmException {
+        String shaOfOwnedFile = SHAGenerator.getSHA("Client/" + p_fileName + ".xml");
+        List<FileInfo> serverFilesInfo = getFilesInfo();
+
+        List<FileInfo> listWithOneFileInfo = serverFilesInfo.stream()
+                .filter(fileInfo -> fileInfo.getName().equals(p_fileName))
+                .collect(Collectors.toList());
+        FileInfo correspondingFileInfo = Iterables.getOnlyElement(listWithOneFileInfo);
+
+        return !correspondingFileInfo.getSha().equals(shaOfOwnedFile);
+    }
+
     private List<Vehicle> getAppropriateVehicleList(PersonType p_person, VehicleGroup p_vehicleGroup) {
         if(p_vehicleGroup == VehicleGroup.REGISTERED) {
             return p_person.getRegisteredCars();
@@ -219,13 +300,8 @@ public class Client {
 
     public static void main(String[] args) {
         try {
-            Socket socket = new Socket("localhost", 4567);
-            Client client = new Client(socket);
-
-            client.getFile("personList");
-
-            socket.close();
-        } catch(IOException | JAXBException p_e) {
+            new Client("localhost", 4567).getFile("personList");
+        } catch(IOException | JAXBException | NoSuchAlgorithmException p_e) {
             p_e.printStackTrace();
         }
     }
