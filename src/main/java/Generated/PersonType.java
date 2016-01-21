@@ -6,7 +6,7 @@
 //
 
 
-package generated;
+package Generated;
 
 import javax.xml.bind.annotation.*;
 import java.util.ArrayList;
