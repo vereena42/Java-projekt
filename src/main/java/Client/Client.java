@@ -148,7 +148,7 @@ public class Client {
         Socket socket = new Socket(host, port);
         DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
 
-        outToServer.writeBytes(DELETE + personListName);
+        outToServer.writeBytes(DELETE + personListName + "\n");
 
         socket.close();
 

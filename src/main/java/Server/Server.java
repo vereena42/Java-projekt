@@ -1,5 +1,6 @@
 package Server;
 
+import Generated.ObjectFactory;
 import Generated.PersonList;
 import Utils.SHAGenerator;
 import Utils.XMLHandling;
@@ -122,7 +123,7 @@ public class Server {
         //writing to temp
         String zipPath = "Server/TempFiles/temp.zip";
         FileOutputStream fos = new FileOutputStream(zipPath);
-        XMLHandling xmlHandling=new XMLHandling();
+        XMLHandling xmlHandling = new XMLHandling(new ObjectFactory());
         byte[] buffer = new byte[1024];
         int count;
 
