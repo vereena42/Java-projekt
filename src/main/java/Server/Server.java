@@ -168,14 +168,8 @@ public class Server {
             if(!info.isFile())
             {
                 try {
-                    //tutaj powinno wpisywać 0, a nie plik
                     output=new BufferedWriter(new FileWriter(info));
-                    output.write("1\n");
-                    DateFormat dateFormat = new SimpleDateFormat("yyyy:MM:dd");
-                    Date date = new Date();
-                    System.out.println(dateFormat.format(date));
-                    output.write("personList"+" "+ SHAGenerator.getSHA("Server/personList.xml")+" "+dateFormat.format(date)+"\n");
-
+                    output.write("0\n");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
