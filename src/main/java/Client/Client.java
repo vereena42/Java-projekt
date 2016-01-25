@@ -7,20 +7,13 @@ import Generated.Vehicle;
 import Utils.SHAGenerator;
 import Utils.XMLHandling;
 import Utils.ZIPHandling;
+import com.google.common.collect.Iterables;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -29,11 +22,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.Iterables;
-
-import static Utils.ProtocolMethod.DELETE;
-import static Utils.ProtocolMethod.GET;
-import static Utils.ProtocolMethod.POST;
+import static Utils.ProtocolMethod.*;
 
 /**
  * Created by Dominika Salawa & Pawel Polit
@@ -186,6 +175,32 @@ public class Client {
         personList.getPerson().remove(p_personIndex);
     }
 
+    public String getPersonName(int p_personIndex) {
+        return personList.getPerson().get(p_personIndex).getName();
+    }
+
+    public String getPersonSurname(int p_personIndex) {
+        return personList.getPerson().get(p_personIndex).getSurname();
+    }
+
+    public String getPersonPesel(int p_personIndex) {
+        return personList.getPerson().get(p_personIndex).getPesel();
+    }
+
+    public String getPersonEmail(int p_personIndex) {
+        return personList.getPerson().get(p_personIndex).getEmail();
+    }
+
+    public List<Vehicle> getVehicles(int p_personIndex, VehicleGroup p_vehicleGroup) {
+        return getAppropriateVehicleList(personList.getPerson().get(p_personIndex), p_vehicleGroup);
+    }
+
+    public List<String> getPeopleInfo() {
+        return personList.getPerson().stream()
+                .map(person -> person.getName() + " " + person.getSurname() + " " + person.getPesel() + " " + person.getEmail())
+                .collect(Collectors.toList());
+    }
+
     public void addVehicle(int p_personIndex, VehicleGroup p_vehicleGroup, String p_type, String p_chassisNumber,
                            String p_documentNumber, String p_registrationNumber, Date p_registrationDate,
                            Date p_documentExpirationDate) throws DatatypeConfigurationException {
@@ -300,8 +315,8 @@ public class Client {
 
     public static void main(String[] args) {
         try {
-            new Client("localhost", 4567).getFile("personList");
-        } catch(IOException | JAXBException | NoSuchAlgorithmException p_e) {
+            new FilesListView(new Client("localhost", 4567));
+        } catch(IOException | JAXBException p_e) {
             p_e.printStackTrace();
         }
     }
